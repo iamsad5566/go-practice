@@ -1,10 +1,13 @@
 package main
 
 import (
+	"sort"
+	"strconv"
 	"sync/atomic"
 )
 
 type Manipulation string
+type TransferStatus int
 
 const (
 	MDeposit  Manipulation = "deposit"
@@ -12,13 +15,21 @@ const (
 	MTransfer Manipulation = "transfer"
 )
 
+const (
+	Pending TransferStatus = iota
+	SUCCESS
+	FAILED
+	CANCELLED
+)
+
 func main() {
 	bankSystem := NewBankSystem()
 }
 
 type BankSystem struct {
-	ID      int64
-	Account map[string]*Account
+	ID                 int64
+	Account            map[string]*Account
+	SchedualedTransfer []*ScheduledOrder
 }
 
 type Account struct {
@@ -36,6 +47,12 @@ type Record struct {
 	Amount        int64
 	CreatedAt     int64
 	TargetAccount string
+}
+
+type ScheduledOrder struct {
+	Record
+	Status             TransferStatus
+	ScheduledTimestamp int64
 }
 
 func NewBankSystem() *BankSystem {
@@ -116,4 +133,126 @@ func (b *BankSystem) Transfer(timestamp int64, fromId string, toId string, amoun
 		TargetAccount: accountFrom.ID,
 	})
 	return true
+}
+
+func (b *BankSystem) GetTotalTransactedAmount(timestamp int64, accountId string) (int64, bool) {
+	account := b.Account[accountId]
+	totalTransfer := int64(0)
+	if account == nil {
+		return totalTransfer, false
+	}
+
+	for _, record := range account.Records {
+		if record.CreatedAt <= timestamp && record.Manipulation == MTransfer && record.Amount < 0 {
+			totalTransfer += record.Amount
+		}
+	}
+	return -totalTransfer, true
+}
+
+func (b *BankSystem) GetTopKAccountsByTransfers(timestamp int64, k int) []string {
+	type acountTmp struct {
+		ID     string
+		Amount int64
+	}
+	accounts := make([]acountTmp, 0, len(b.Account))
+
+	for _, account := range b.Account {
+		transacted, _ := b.GetTotalTransactedAmount(timestamp, account.ID)
+		accounts = append(accounts, acountTmp{ID: account.ID, Amount: transacted})
+	}
+
+	sort.Slice(accounts, func(i, j int) bool {
+		if accounts[i].Amount != accounts[j].Amount {
+			return accounts[i].Amount > accounts[j].Amount
+		}
+		return accounts[i].ID < accounts[j].ID
+	})
+
+	res := make([]string, min(k, len(accounts)))
+	for i := 0; i < min(k, len(accounts)); i++ {
+		res[i] = accounts[i].ID
+	}
+
+	return res
+}
+
+func (b *BankSystem) ScheduleTransfer(timestamp int64, scheduleTime int64, fromId string, toId string, amount int64) (string, bool) {
+	if fromId == toId {
+		return "", false
+	}
+
+	fromAccount := b.Account[fromId]
+	toAccount := b.Account[toId]
+	if fromAccount == nil || toAccount == nil {
+		return "", false
+	}
+
+	scheduledRecord := &Record{
+		ID:            atomic.AddInt64(&b.ID, 1),
+		AccountID:     fromId,
+		TargetAccount: toId,
+		Amount:        amount,
+		CreatedAt:     timestamp,
+	}
+	b.SchedualedTransfer = append(b.SchedualedTransfer, &ScheduledOrder{
+		Record:             *scheduledRecord,
+		Status:             Pending,
+		ScheduledTimestamp: scheduleTime,
+	})
+	schId := strconv.FormatInt(b.ID, 10)
+	return schId, true
+}
+
+func (b *BankSystem) ExecuteScheduledTransfers(timestamp int64) int {
+	exed := 0
+	sort.Slice(b.SchedualedTransfer, func(i, j int) bool {
+		if b.SchedualedTransfer[i].ScheduledTimestamp != b.SchedualedTransfer[j].ScheduledTimestamp {
+			return b.SchedualedTransfer[i].ScheduledTimestamp < b.SchedualedTransfer[j].ScheduledTimestamp
+		}
+		return b.SchedualedTransfer[i].CreatedAt < b.SchedualedTransfer[j].CreatedAt
+	})
+
+	for _, order := range b.SchedualedTransfer {
+		if order.Status != Pending {
+			continue
+		}
+
+		if order.ScheduledTimestamp > timestamp {
+			break
+		}
+		balance := b.Account[order.AccountID].Balance
+		if balance < order.Amount {
+			order.Status = FAILED
+		} else {
+			b.Account[order.AccountID].Balance -= order.Amount
+			b.Account[order.TargetAccount].Balance += order.Amount
+			b.Account[order.AccountID].Records = append(b.Account[order.AccountID].Records, &Record{
+				ID:            atomic.AddInt64(&b.ID, 1),
+				AccountID:     order.AccountID,
+				Manipulation:  MTransfer,
+				Amount:        -order.Amount,
+				CreatedAt:     order.ScheduledTimestamp,
+				TargetAccount: order.TargetAccount,
+			})
+			b.Account[order.TargetAccount].Records = append(b.Account[order.TargetAccount].Records, &Record{
+				ID:            atomic.AddInt64(&b.ID, 1),
+				AccountID:     order.TargetAccount,
+				Manipulation:  MTransfer,
+				Amount:        order.Amount,
+				CreatedAt:     order.ScheduledTimestamp,
+				TargetAccount: order.AccountID,
+			})
+			order.Status = SUCCESS
+			exed++
+		}
+	}
+	return exed
+}
+
+func min(i, j int) int {
+	if i < j {
+		return i
+	}
+	return j
 }
