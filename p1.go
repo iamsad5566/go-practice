@@ -13,10 +13,11 @@ const (
 	MDeposit  Manipulation = "deposit"
 	MRetrieve Manipulation = "retrieve"
 	MTransfer Manipulation = "transfer"
+	MRollback Manipulation = "rollback"
 )
 
 const (
-	Pending TransferStatus = iota
+	PENDING TransferStatus = iota
 	SUCCESS
 	FAILED
 	CANCELLED
@@ -47,6 +48,7 @@ type Record struct {
 	Amount        int64
 	CreatedAt     int64
 	TargetAccount string
+	IsRolledBack  bool
 }
 
 type ScheduledOrder struct {
@@ -197,7 +199,7 @@ func (b *BankSystem) ScheduleTransfer(timestamp int64, scheduleTime int64, fromI
 	}
 	b.SchedualedTransfer = append(b.SchedualedTransfer, &ScheduledOrder{
 		Record:             *scheduledRecord,
-		Status:             Pending,
+		Status:             PENDING,
 		ScheduledTimestamp: scheduleTime,
 	})
 	schId := strconv.FormatInt(b.ID, 10)
@@ -214,7 +216,7 @@ func (b *BankSystem) ExecuteScheduledTransfers(timestamp int64) int {
 	})
 
 	for _, order := range b.SchedualedTransfer {
-		if order.Status != Pending {
+		if order.Status != PENDING {
 			continue
 		}
 
@@ -250,9 +252,113 @@ func (b *BankSystem) ExecuteScheduledTransfers(timestamp int64) int {
 	return exed
 }
 
+func (b *BankSystem) CancelScheduledTransfer(timestamp int64, transferId string) bool {
+	var targetOrder *ScheduledOrder
+	for _, order := range b.SchedualedTransfer {
+		if strconv.FormatInt(order.ID, 10) == transferId {
+			targetOrder = order
+		}
+	}
+
+	if targetOrder == nil || targetOrder.Status != PENDING || targetOrder.ScheduledTimestamp < timestamp {
+		return false
+	}
+
+	targetOrder.Status = CANCELLED
+	return true
+}
+
+func (b *BankSystem) RollbackTransfer(timestamp int64, transferRecordId int64) bool {
+	var targetOrder *ScheduledOrder
+	for _, order := range b.SchedualedTransfer {
+		if order.ID == transferRecordId {
+			targetOrder = order
+		}
+	}
+
+	if targetOrder != nil && targetOrder.Status == CANCELLED {
+		return false
+	}
+
+	if targetOrder != nil && targetOrder.Status == PENDING {
+		targetOrder.Status = CANCELLED
+		return true
+	}
+
+	var transferRecordFrom *Record
+	var transferRecordTo *Record
+
+	for _, account := range b.Account {
+		for _, record := range account.Records {
+			if record.ID == transferRecordId {
+				if record.Amount < 0 {
+					transferRecordFrom = record
+				} else {
+					transferRecordTo = record
+				}
+			}
+		}
+	}
+
+	if transferRecordFrom == nil {
+		for _, record := range b.Account[transferRecordTo.TargetAccount].Records {
+			if record.CreatedAt == transferRecordTo.CreatedAt {
+				transferRecordFrom = record
+			}
+		}
+	} else if transferRecordTo == nil {
+		for _, record := range b.Account[transferRecordFrom.TargetAccount].Records {
+			if record.CreatedAt == transferRecordFrom.CreatedAt {
+				transferRecordTo = record
+			}
+		}
+	}
+
+	if transferRecordFrom == nil || transferRecordTo == nil || transferRecordFrom.Manipulation == MRollback || transferRecordFrom.IsRolledBack || transferRecordTo.IsRolledBack {
+		return false
+	}
+
+	if b.Account[transferRecordTo.AccountID].Balance < abs(transferRecordTo.Amount) {
+		return false
+	}
+
+	b.Account[transferRecordFrom.AccountID].Balance += abs(transferRecordFrom.Amount)
+	b.Account[transferRecordTo.AccountID].Balance -= abs(transferRecordTo.Amount)
+	rollBackRecordF := &Record{
+		ID:            atomic.AddInt64(&b.ID, 10),
+		AccountID:     transferRecordFrom.AccountID,
+		Manipulation:  MRollback,
+		CreatedAt:     timestamp,
+		TargetAccount: transferRecordTo.AccountID,
+		Amount:        abs(transferRecordFrom.Amount),
+	}
+
+	rollBackRecordT := &Record{
+		ID:            atomic.AddInt64(&b.ID, 10),
+		AccountID:     transferRecordTo.AccountID,
+		Manipulation:  MRollback,
+		CreatedAt:     timestamp,
+		TargetAccount: transferRecordFrom.AccountID,
+		Amount:        -abs(transferRecordTo.Amount),
+	}
+
+	transferRecordFrom.IsRolledBack = true
+	transferRecordTo.IsRolledBack = true
+	b.Account[transferRecordFrom.AccountID].Records = append(b.Account[transferRecordFrom.AccountID].Records, rollBackRecordF)
+	b.Account[transferRecordTo.AccountID].Records = append(b.Account[transferRecordTo.AccountID].Records, rollBackRecordT)
+	return true
+}
+
 func min(i, j int) int {
 	if i < j {
 		return i
 	}
 	return j
+}
+
+func abs(i int64) int64 {
+	if i < 0 {
+		return -i
+	}
+	return i
 }
