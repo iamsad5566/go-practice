@@ -349,12 +349,12 @@ func (b *BankSystem) RollbackTransfer(timestamp int64, transferRecordId int64) b
 	return true
 }
 
-func min(i, j int) int {
-	if i < j {
-		return i
-	}
-	return j
-}
+// func min(i, j int) int {
+// 	if i < j {
+// 		return i
+// 	}
+// 	return j
+// }
 
 func abs(i int64) int64 {
 	if i < 0 {
