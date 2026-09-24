@@ -1,6 +1,6 @@
 # Circle Technical Interview: Follow-Up Question Bank
 
-In the final 10–15 minutes of the AI Implementation round, interviewers will ask architectural follow-ups to evaluate whether your in-memory design can scale into a production-grade distributed financial platform.
+在面試最後約 20 分鐘（70:00 – 90:00），面試官會以中文進行高維度的分散式系統架構追問，評估候選人能否將剛才實作的單機記憶體原型，演進為支撐百萬級 TPS、具備高可用與金融級強一致性的分散式生產平台。
 
 ---
 

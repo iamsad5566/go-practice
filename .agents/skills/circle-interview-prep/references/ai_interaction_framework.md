@@ -53,15 +53,16 @@ When Claude or any AI produces code, do **not** run it immediately. Spend 30 sec
 
 ---
 
-## 3. Think Aloud Scripts During AI Pairing
+## 3. Think Aloud Scripts During AI Pairing (中文思考外顯話術)
 
-Use these phrases to actively demonstrate your Senior engineering judgment to the interviewer while interacting with the AI:
+在指揮 AI 協作的過程中，向面試官用中文口述你的工程判斷與把關思考，展現 Tech Lead 的獨立決策力：
 
-- **Before Prompting**:
-  > *"Before I ask the AI to implement this, let's identify the core concurrency risk. Since we are dealing with multi-resource updates, we have an ABBA deadlock hazard. I am going to instruct the AI to use a deterministic lock ordering based on IDs."*
+- **下 Prompt 前 (說明架構約束，展現防禦意識)**：
+  > 「在請 AI 生成轉帳方法前，我們先識別並發關鍵風險：因為涉及多帳戶餘額更新，存在經典的 ABBA 死鎖風險。我不會直接讓 AI 自由發揮，而是給出嚴格約束，要求它必須先調用我們定義的 `lockPair`（按 AccountID 排序加鎖），並遵循 Check-then-Act 兩階段變更。」
 
-- **While Reviewing AI Output**:
-  > *"Looking at the AI's code, the core logic is clean, but notice it directly returned an internal slice. In Go, that leaks mutable state to external callers. I'm going to fix that by doing a defensive copy."*
+- **審查 AI 代碼時 (Gatekeeper 逐行審查，抓出隱蔽 Bug)**：
+  > 「檢視 AI 剛產生的代碼，核心邏輯看起來很流暢，但注意看第 38 行：它直接把內部的 transaction slice 回傳了。在 Go 語言中，這會把內部可變狀態暴露給外部調用方，造成潛在的 Data Race。我現在手動（或請 AI）加上防禦性複製（Defensive Copy）。」
 
-- **When a Test Fails**:
-  > *"The race detector flagged a data race on line 45. The AI accessed the map under an RLock while a background worker held a Lock. Let me adjust the lock boundary rather than letting the AI guess blindly."*
+- **測試報錯或 `-race` 警告時 (冷靜診斷，拒絕盲試)**：
+  > 「測試在高並發場景下報了 Data Race。這不是隨機問題，是因為 AI 在查詢狀態時偷懶沒拿讀鎖。我現在直接指定修復位置與加鎖邊界，而不是讓 AI 瞎猜亂改。」
+

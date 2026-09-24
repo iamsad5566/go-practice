@@ -1,84 +1,93 @@
-# PRD-Driven Interview Execution Playbook
+# PRD-Driven Interview Execution Playbook (90 分鐘中文實戰指南)
 
-This playbook outlines time management, psychological pacing, and communication scripts for Circle's PRD-driven AI Implementation round.
+本指南專為 Circle 資深/主任工程師 (Senior/Staff SWE) 之 **AI 協同實作面試 (90 分鐘，中文進行)** 設計。重點在於展現 **Tech Lead 主導權、主動釐清模糊、情境合理假設與獨立批判思考**。
 
 ---
 
-## 1. Tactical Time Management (The 60-Minute Budget)
+## 1. 90 分鐘實戰時間分配 (Tactical Time Budget)
 
-| Phase | Time Allocated | Objective & Deliverables |
+| 面試階段 (Phase) | 建議時間 (Time Allocated) | 核心目標與交付成果 (Objectives & Deliverables) |
 | :--- | :--- | :--- |
-| **Phase 1: PRD Clarification & Classification** | **00:00 - 08:00 (8 min)** | Spot ambiguities, classify business questions vs. technical assumptions, state invariants out loud. |
-| **Phase 2: Architecture & Think Out Loud** | **08:00 - 15:00 (7 min)** | Define structs, lock hierarchies, two-phase mutations, and sentinel errors before touching code. |
-| **Phase 3: AI Pair Implementation & Verification** | **15:00 - 45:00 (30 min)** | Execute Architecture-First Prompts with AI, review code (Gatekeeper), run `go test -v -race ./...`. |
-| **Phase 4: Follow-up & System Evolution** | **45:00 - 60:00 (15 min)** | Discuss distributed scaling, 2PC/Saga, WAL, sharding, and resilience with the interviewer. |
+| **Phase 1: 需求剖析、模糊澄清與情境假設** | **00:00 - 15:00 (15 min)** | 抓出 PRD 模糊與邊界問題，區分業務對齊 vs 工程假設，主動向面試官對齊不變量 (Invariants)。 |
+| **Phase 2: 架構藍圖設計與 Think Out Loud** | **15:00 - 25:00 (10 min)** | 在碰代碼前定義 structs、鎖層級、防死鎖排序、原子變更策略與哨兵錯誤，用中文與面試官對齊。 |
+| **Phase 3: AI 協同實作、守門員審查與 Race 測試** | **25:00 - 70:00 (45 min)** | 使用架構約束提示詞引導 AI，逐行審查 AI 代碼（Gatekeeper），執行 `go test -v -race ./...` 驗證。 |
+| **Phase 4: 分散式架構演進與深入 Follow-up** | **70:00 - 90:00 (20 min)** | 針對分散式擴展、2PC/Saga、WAL、分庫分表 (Sharding) 與高可用災難復原進行深度架構防禦。 |
 
 ---
 
-## 2. Phase 1: Clarification & Classification Script
+## 2. Phase 1: 模糊澄清與情境假設話術 (中文對話範例)
 
-When you first receive the PRD, DO NOT start writing code or prompts. Follow this script:
+當拿到 PRD 時，**絕對不要馬上打字或丟給 AI**。面試官高度期待看到候選人的獨立思考與主動提問能力：
 
 ```text
-"I've read through the requirements. Before diving into implementation, I want to clarify a few ambiguities and explicitly classify our assumptions:
+「面試官您好，我已經仔細閱讀了這份 PRD。在開始實作之前，我發現規格書中有幾處刻意留白或可能存在歧義的邊界條件。
+我想先將問題分類，向您確認核心業務語意，並同步說明我在技術與情境上的合理假設：
 
-1. Business Semantics:
-   - For transfers, if account A transfers to account B, how should fees or zero-amount transfers be handled?
-   - In case of failure (e.g., insufficient balance), is the transaction state immediately marked FAILED or queued?
+1. 核心業務語意對齊 (需要與您確認)：
+   - 手續費扣除機制：在轉帳交易中，若金額為 100 且手續費為 2，是從轉出金額內扣（收款方實收 98），還是外加於付款方帳戶（付款方扣 102、收款方得 100）？
+   - 失敗處理與生命週期：若轉帳中途校驗失敗（如收款帳戶遭凍結），該筆交易應立即標記為 FAILED 並返回，還是保留在暫態進入重試佇列？
+   - 負餘額政策：系統是否允許信用額度透支（Overdraft），還是餘額必須嚴格 >= 0？
 
-2. Precision & Range:
-   - I assume all amounts are represented as int64 micro-units (e.g. 1 USDC = 10^6 micro-USDC) to avoid floating-point inaccuracies.
-   - I'll add overflow protection against math.MaxInt64.
+2. 情境化技術假設 (基於金融系統場景，我提出以下工程設計)：
+   - 數值精度：為根絕浮點數（float64）精度偏差，我假設系統內所有金額皆以 int64 微單位（如 1 USDC = 10^6 micro-USDC）計價。
+   - 溢位安全：我會在相加與相乘邏輯中加入 math.MaxInt64 的溢位防禦，且拒絕 <= 0 的非法數值。
+   - 並發與冪等：面對高並發請求，我會設計 Idempotency-Key 去重，防止網路重試造成重複扣款。
 
-3. Concurrency Guarantees:
-   - I assume high concurrent operations across accounts, requiring strict data consistency and zero data races.
-   - For account lookups vs. updates, I'll use a two-level locking model.
+3. 今日面試範疇與架構取捨：
+   - 考量到 90 分鐘的實作時間，我會先以純記憶體 (In-Memory) 作為資料儲存，但我會定義乾淨的 Repository / Storage Interface，確保後續能平滑切換為 PostgreSQL 或 Redis 分散式持久層。
 
-4. Scope Assumptions:
-   - For today's session, I will assume pure in-memory storage, but encapsulate the data access cleanly so persistent storage can be plugged in during the follow-up."
+請問您對上述的假設與方向是否認同？是否有我需要特別留意的業務規則？」
 ```
 
 ---
 
-## 3. Phase 2: Architecture & Think Out Loud Script
+## 3. Phase 2: 架構設計與思考外顯 (Think Out Loud) 話術
 
-Narrate your data models and concurrency design:
+在指揮 AI 寫代碼之前，用中文口述你的架構決策，向面試官展示你擁有「系統架構主導權」：
 
 ```text
-"Now I'll define the architectural foundation:
-1. Data Models:
-   - A Ledger struct containing a map[string]*Account protected by a sync.RWMutex.
-   - An Account struct with balance int64 protected by a sync.Mutex.
-2. Deadlock Prevention:
-   - For multi-account transfers, I will implement a lockPair helper that orders account IDs lexicographically before acquiring locks to eliminate ABBA deadlocks.
-3. Mutation Strategy:
-   - I will use a Two-Phase approach: validate balances and preconditions on both accounts while holding both locks, then apply mutations atomically."
+「在讓 AI 協同實作具體代碼前，我先向您梳理我的核心架構設計與並發控制邏輯：
+
+1. 數據結構 (Data Models)：
+   - 我會設計一個 Ledger 註冊表，內部維護 map[string]*Account，並使用 sync.RWMutex 做讀寫分離保護。
+   - 每個 Account 實體內部擁有獨立的 balance int64 與專屬的 sync.Mutex，以降低鎖競爭。
+
+2. 防死鎖機制 (Deadlock Prevention)：
+   - 跨帳戶轉帳（如 A 轉給 B，同時 B 轉給 A）極易造成 ABBA 死鎖。
+   - 我會設計一個 lockPair 輔助函式，強制比對帳戶 ID 的字典序（Deterministic ID Ordering），永遠依照固定順序獲取 Mutex，從根本杜絕死鎖。
+
+3. 兩階段原子變更 (Two-Phase Commit / Check-then-Act)：
+   - 在鎖定雙方帳戶後，第一階段先驗證雙方狀態、餘額充裕度與是否溢位；
+   - 確認全部合法後，第二階段才同時扣款與入帳，確保狀態轉換的原子性。
+
+若您覺得這個架構方向沒問題，我現在就以此架構約束，透過 AI 產出核心邏輯與單元測試。」
 ```
 
 ---
 
-## 4. Phase 3: AI Pairing & Recovery Tactics
+## 4. Phase 3: AI 協同實作與守門員審查 (Gatekeeper)
 
-### The Gatekeeper Review Checklist
-When the AI generates code, scan for these 5 common AI defects before running tests:
-1. **Did AI acquire locks in arbitrary order?** (Deadlock hazard)
-2. **Did AI hold a lock across an I/O operation or sleep?** (Contention hazard)
-3. **Did AI copy a struct containing a `sync.Mutex` by value?** (`go vet` failure)
-4. **Did AI forget overflow checks or negative amount checks?** (Edge case bug)
-5. **Did AI mutate state before checking all conditions?** (Atomicity leak)
+### 審查 AI 產出的 5 大經典陷阱 (Checklist)
+當 AI 產出代碼時，**不要直接執行**，花 30-60 秒快速掃描並向面試官口述你的審查點：
+1. **加鎖順序是否依序？** 是否有未經排序就直接鎖兩個帳戶的 ABBA 隱患？
+2. **是否在鎖內進行耗時操作？** 是否在持有鎖的情況下做 I/O、Sleep 或複雜運算導致 Lock Contention？
+3. **Mutex 是否被值複製 (Copied by value)？** 檢查 struct 是否用 pointer receiver（`func (a *Account)` 而非 `func (a Account)`）。
+4. **邊界條件是否完整？** AI 是否漏掉了負數金額、0 元轉帳、轉給自己、或 `math.MaxInt64` 溢位檢查？
+5. **內部狀態是否外洩？** 回傳 Slice 或 Map 時，AI 是否直接回傳內部指標而未做深拷貝 (Defensive Copy)？
 
-### When Tests Fail
-1. **Never say to AI: "Fix this error"**: That produces band-aid fixes and spaghetti code.
-2. **Diagnose first, then direct**:
-   > *"The test failed with a race condition on `account.balance` during concurrent transfers. Refactor `transferInternal` to ensure `lockPair` is called before reading either balance, and verify with `go test -race`."*
+### 當測試失敗或 Race Detector 報警時的應對策略
+1. **切忌對 AI 說「這行錯了請修好」**：這會讓 AI 胡亂打補丁，製造義大利麵代碼。
+2. **自己先定位問題（展現獨立思考），再給出精準指令**：
+   > *「測試在併發轉帳時被 `-race` 偵測出資料競爭，原因在於 AI 在讀取帳戶餘額時漏掉了帳戶級 Mutex。我現在指示 AI 在 `transfer` 進入臨界區前正確調用我們定義的 `lockPair`，並重新跑測試。」*
 
 ---
 
-## 5. Phase 4: Follow-up Preparedness
+## 5. Phase 4: 分散式架構 Follow-up 應對藍圖
 
-Expect the interviewer to pivot at minute 45:
-- *"How would this change if we have 10 instances of this service?"*
-- *"How do we persist this to PostgreSQL or DynamoDB without losing throughput?"*
-- *"What if one of the accounts is on an external ledger?"*
+在最後 20 分鐘（70:00 - 90:00），面試官會將單機記憶體系統推向生產級分散式架構：
+- *「如果這套服務從 1 台擴展成 10 台叢集，帳戶資料分散在不同節點，轉帳要如何保證原子性？」*
+- *「如何將這個 Ledger 持久化到 PostgreSQL 或 DynamoDB，同時支撐數萬 TPS？」*
+- *「面對網路 Timeout 與重複發送，如何設計端到端冪等性？」*
 
-Refer to [followup_question_bank.md](./followup_question_bank.md) for Staff-level response frameworks.
+👉 詳見 [followup_question_bank.md](./followup_question_bank.md) 獲取具備 Staff 水準的分散式系統應答框架。
+
