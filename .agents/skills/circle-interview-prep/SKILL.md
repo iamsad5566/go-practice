@@ -1,90 +1,93 @@
 ---
 name: circle-interview-prep
 description: >-
-  Comprehensive guide and evaluation rubric for Circle Senior/Staff SWE Technical Interviews (e.g. AI Implementation Interview, CodeSignal ICF).
-  Use this skill to understand what Circle interviewers evaluate, how to drive AI as a Tech Lead, master Go concurrency and data integrity patterns,
-  and execute high-stakes live coding interviews across any problem domain.
+  Comprehensive guide and evaluation rubric for Circle Senior/Staff SWE Technical Interviews (PRD-driven AI Implementation Round).
+  Use this skill to master the PRD clarification & classification workflow, drive AI as a Tech Lead, excel at Go concurrency and data integrity,
+  and ace deep architectural follow-ups.
 ---
 
-# Circle Senior/Staff SWE Interview Playbook
+# Circle Senior/Staff SWE Interview Playbook (PRD & AI Pair Implementation)
 
-This skill is a complete guide to succeeding in Circle's **AI Implementation Interview** and other technical rounds. It details the exact rubric Circle interviewers use, how to maintain architectural control when pairing with AI, and the universal engineering standards expected of a Senior or Staff Software Engineer.
+This skill guides preparation and execution for Circle's **AI Implementation Technical Interview**. 
 
----
-
-## 1. What Circle Interviewers Are Actually Evaluating
-
-In an AI-enabled interview, the interviewer is **not** testing whether you can memorize Go syntax or write basic algorithms from scratch. They are assessing whether you can function as an **autonomous, high-judgment Tech Lead**.
-
-### The 5 Evaluation Dimensions
-
-| Dimension | What Interviewers Look For | Red Flags (Down-level / Reject) |
-| :--- | :--- | :--- |
-| **1. Architectural Sovereignty** | You define data structures, boundaries, and invariants *before* writing code. You tell the AI what to build, not ask it what to do. | Copy-pasting the raw problem description directly into the AI and letting it dictate the architecture. |
-| **2. Concurrency & Data Integrity** | Deep instinct for race conditions, deadlock elimination, atomicity, and lock granularity. Knowing financial states cannot tolerate data races. | Using a single global lock, ignoring ABBA deadlocks on multi-resource operations, or mutating state without locks. |
-| **3. AI Collaboration & Prompt Quality** | High-signal, constraint-driven prompts. Treating AI as a junior pair-programmer. | Vague prompts, repetitive trial-and-error prompting, or accepting code without reading it. |
-| **4. Defensive Engineering** | Guard clauses, typed errors (`errors.Is`), numeric overflow checks, idempotent operations, and zero data leakage. | Missing validation, silent failures, panic risks, or ignoring edge cases like negative numbers and zero values. |
-| **5. Communication & Think Aloud** | Narrating decisions: *"I am setting a strict lock ordering here to prevent circular wait, then I'll have AI implement the helper."* | Silent coding, staring at AI outputs without explaining what you are reviewing or why a test failed. |
+In this round, candidates receive a realistic **PRD / Technical Specification**, clarify ambiguities, classify assumptions, collaborate with an AI assistant (Claude/Copilot) as a Tech Lead, and defend their architecture during an interactive **Follow-up** discussion.
 
 ---
 
-## 2. The 4 Progressive Levels: What the Interviewer Tests at Each Stage
+## 1. Core Evaluation Rubric (What Circle Evaluates)
 
-Circle's technical tasks (CodeSignal Industry Coding Framework) evolve through 4 distinct levels. Regardless of the domain (Ledger, Key-Value Store, File System, or Token Router), each level has a specific grading purpose:
+Circle evaluates Senior and Staff candidates across five core dimensions:
+
+| Dimension | What Interviewers Look For | Strong Senior/Staff Signal | Red Flags (Down-level / Reject) |
+| :--- | :--- | :--- | :--- |
+| **1. Clarification & Classification** | Proactively identifying ambiguities in the PRD, classifying which require product alignment vs. reasonable engineering assumptions. | Surfaces hidden edge cases, defines explicit assumptions out loud, clarifies consistency and precision invariants. | Silently guessing requirements; passing the raw PRD straight into AI without clarification. |
+| **2. Architectural Sovereignty (Driver)** | Deciding data models, lock hierarchy, state machines, and error contracts before touching code. | Defines struct fields, locking order (ABBA prevention), and two-phase mutations *before* prompting AI. | Letting AI design the architecture; accepting AI hallucinations or anti-patterns blindly. |
+| **3. Concurrency & Data Integrity** | Deep instinct for race conditions, deadlock elimination, lock contention, numeric precision, and overflow checks. | Two-level locking, deterministic ID-ordered lock acquisition, atomic check-then-act, zero races under `go test -race`. | Global locks on all methods, locking out-of-order, floating-point money, ignoring integer overflow. |
+| **4. High-Signal AI Collaboration** | Constraint-driven, architecture-first prompts. Treating AI as an implementation copilot for boilerplate, algorithms, and tests. | Writes precise specs, struct definitions, and error constraints; directs AI surgically to fix failures. | Vague prompts ("implement this PRD"), repetitive trial-and-error prompting, lack of gatekeeping. |
+| **5. Communication & Follow-up Depth** | Continuous "Think Out Loud"; crisp justification of trade-offs (KISS vs. extensibility); deep answers to distributed systems follow-ups. | Articulates trade-offs clearly; demonstrates deep knowledge when evolving in-memory state to distributed infra (Saga, 2PC, WAL). | Coding in silence; panicking when tests fail; unable to explain how in-memory design maps to distributed infra. |
+
+---
+
+## 2. The 4-Phase Interview Workflow (60 Minutes)
 
 ```text
-Level 1: Foundation & Data Modeling (15 min)
-   └─ Goal: Clean abstractions, proper encapsulation, basic CRUD, thread-safe scaffolding.
+[00:00 - 08:00] Phase 1: PRD Analysis, Clarification & Classification
+    └─ Read PRD, spot ambiguities.
+    └─ Classify: (A) Business rules needing interviewer confirmation vs. (B) Technical assumptions stated out loud.
 
-Level 2: Aggregation & Multi-Resource Interaction (20 min)
-   └─ Goal: Cross-entity operations, deadlock prevention, non-blocking analytical reads.
+[08:00 - 15:00] Phase 2: Architecture & Think Out Loud
+    └─ Define structs, state transitions, locking hierarchy, guard clauses, and error types out loud.
 
-Level 3: Complex State & Requirement Shift (30 min)
-   └─ Goal: Introducing state machines, delayed/scheduled operations, refactoring without breaking tests.
+[15:00 - 45:00] Phase 3: AI-Assisted Implementation & Verification
+    └─ Prompt AI with strict architectural boundaries (Architecture-First Template).
+    └─ Review code line-by-line (Gatekeeper pattern: race conditions, deadlock, leak checks).
+    └─ Execute tests with `go test -v -race ./...`.
 
-Level 4: Resilience, Backward Compatibility & Edge Cases (20 min)
-   └─ Goal: Compensation/Rollback, account merges, idempotency, seamless backward compatibility.
+[45:00 - 60:00] Phase 4: Interviewer Follow-up & System Evolution
+    └─ Deep dive into distributed scaling, sharding, persistence, idempotency, or disaster recovery.
 ```
 
 ---
 
-## 3. The "Driver-Copilot" Operating Model
+## 3. The Clarification & Classification Framework
 
-When interacting with the AI during the interview, follow the **3-Minute Architecture Rule**:
+Before writing any code or prompts, systematically classify ambiguities using these 4 buckets:
 
-```text
-[New Requirement Arrives]
-        │
-        ▼
-[2-3 Min: Architect Alone] ──> Define structs, lock boundaries, error types, state transitions
-        │
-        ▼
-[Prompt: Architecture-First] ──> Send constraints + decisions + interfaces to AI
-        │
-        ▼
-[Gatekeeper Review] ──> Audit AI code for concurrency bugs, value copying, and edge cases
-        │
-        ▼
-[Verification] ──> Run tests with `go test -count=1 -v -race ./...`
-```
+1. **Business Semantics & State Lifecycle**:
+   - Fees & Deductions: Is the fee deducted from the transfer amount or billed separately?
+   - Failure Modes: If a transfer fails mid-flight, is it marked FAILED immediately or queued for retry?
+   - Negative Balances: Are credit lines / overdrafts ever permitted, or strictly non-negative?
+2. **Numeric Precision & Range Invariants**:
+   - Currency Units: Are amounts strictly `int64` micro-units (e.g. 1 USDC = 1,000,000 micro-USDC)? No floating points (`float64`).
+   - Bounds & Overflows: Must we guard against `amount + balance > math.MaxInt64`?
+3. **Concurrency & Consistency Guarantees**:
+   - Ordering: Are concurrent requests for the same account strictly FIFO, or prioritized by timestamp?
+   - Idempotency: Does the PRD require deduplication via `Idempotency-Key` or transaction ID?
+4. **Scope & Architectural Assumptions (State Clearly to Interviewer)**:
+   - *"For today's live session, I will assume an in-memory storage model without external persistence, but I will design clean boundaries so a storage adapter can be plugged in later."*
+   - *"I will assume accounts cannot be deleted once created to preserve ledger auditability."*
 
 ---
 
-## 4. Universal Concurrency & Design Principles (Fintech Standards)
+## 4. The 4 Universal Concurrency & Design Principles
 
-No matter what problem Circle presents, the following four rules always apply:
+All Circle backend systems deal with financial or mission-critical state. The following four invariants must be respected:
 
-1. **Hierarchical Locking**: Never protect an entire registry and individual records with one big lock. Use read-write locks for lookup registries and granular locks for entities.
-2. **Deterministic Lock Ordering**: When any operation requires locking two or more entities simultaneously, **always sort resources by a consistent key (e.g. ID)** before acquiring locks to guarantee zero deadlocks.
-3. **Two-Phase Mutation (Check-then-Act)**: When coordinating state changes across multiple resources, check all preconditions across all involved entities before committing mutations to any single entity.
-4. **Isolated Snapshot Reads**: Analytics and reporting queries must never hold write locks on active transaction paths. Take snapshots under short read locks and perform sorting or transformations outside the lock.
-
-Detailed implementation patterns and reference code are documented in [concurrency_and_data_integrity.md](./references/concurrency_and_data_integrity.md).
+1. **Two-Level Locking (Hierarchical Locking)**:
+   - Registry Level: `sync.RWMutex` (Read-lock for lookups; Write-lock strictly for creation/deletion).
+   - Entity Level: `sync.Mutex` (Protects entity balances and internal state).
+2. **Deterministic Lock Ordering (ABBA Deadlock Elimination)**:
+   - When acquiring locks across multiple entities (e.g. transfers, merges), **always sort entities by a deterministic key (e.g. AccountID)** before acquiring locks.
+3. **Two-Phase Commit (Check-then-Act)**:
+   - Acquire all required locks -> Check all invariants (balance, overflow, limits) -> Apply state mutations -> Release locks.
+4. **Snapshot Reads for Analytics/Aggregations**:
+   - For queries like `GetTopSpenders` or ledger audits, read snapshots under short read-locks and perform sorting/filtering outside critical sections to minimize write-lock contention.
 
 ---
 
-## 5. Reference Documentation in this Skill
+## 5. Reference Documentation
 
-- [concurrency_and_data_integrity.md](./references/concurrency_and_data_integrity.md): Universal concurrency patterns, deadlock elimination, and Go runtime pitfalls.
-- [ai_interaction_framework.md](./references/ai_interaction_framework.md): The Architecture-First Prompting framework, prompt checklists, and common AI blindspots to watch for.
-- [interview_execution_playbook.md](./references/interview_execution_playbook.md): Time management, Think Aloud scripts, and handling live test failures under pressure.
+- [interview_execution_playbook.md](./references/interview_execution_playbook.md): Time management, Think Aloud scripts, and handling live test failures.
+- [ai_interaction_framework.md](./references/ai_interaction_framework.md): The Architecture-First Prompting blueprint and prompt templates.
+- [concurrency_and_data_integrity.md](./references/concurrency_and_data_integrity.md): Universal Go concurrency blueprints, memory models, and race prevention.
+- [followup_question_bank.md](./references/followup_question_bank.md): High-probability follow-up questions (distributed transactions, persistence, sharding, consensus) and Staff-level answers.
