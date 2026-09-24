@@ -91,3 +91,23 @@
 
 👉 詳見 [followup_question_bank.md](./followup_question_bank.md) 獲取具備 Staff 水準的分散式系統應答框架。
 
+---
+
+## 6. Bar Raiser 嚴苛扣分紅線 (The Fatal Down-Level Red Lines)
+
+在 Circle Bar Raiser 考核中，以下 4 個行為會直接觸發降級 (Down-level) 或否決 (Lean No)：
+
+1. **合約粗心與中途折返 (Contract Misalignment)**：
+   - *紅線*：Phase 1 沒看清楚 API 簽名與參數對稱性，直到 Phase 3 實作中途才折返詢問或質疑簽名。
+   - *準則*：Phase 1 必須花 2 分鐘對齊所有簽名，當場鎖死邊界，絕不允許實作中途折返。
+2. **自作主張「腦補業務」 (Scope Creep / Over-Engineering)**：
+   - *紅線*：憑過往經驗自加 PRD 沒有的 API（如 Deposit、未要求的查詢接口）。
+   - *準則*：嚴守「規格即合約」。未列出的功能僅作為 Follow-up 擴展討論，絕不納入核心代碼。
+3. **分散式答辯未「結論先行」 (Lack of Top-Down Conviction)**：
+   - *紅線*：在高吞吐 (100k TPS) 場景下先說「我喜歡 2PC」再轉彎修正為 Saga，暴露第一直覺的架構短板。
+   - *準則*：開口第一句直接定調：「在 100k TPS 下 2PC 是直接被否決的，Saga/TCC 是唯一解」，展現無可動搖的權威感。
+4. **口述思考陷入「意識流」 (Unstructured Stream of Consciousness)**：
+   - *紅線*：一段話同時雜揉資料結構、死鎖、流水號與手續費，考官無法記錄架構骨架。
+   - *準則*：強迫採用 MECE 三層結構（1. 資料模型、2. 鎖分級、3. 關鍵不變量防禦）分點口述。
+
+
