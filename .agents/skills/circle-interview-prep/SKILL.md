@@ -1,99 +1,90 @@
 ---
 name: circle-interview-prep
 description: >-
-  Playbook and mental models for AI-assisted technical interviews (e.g. Circle, Fintech, CodeSignal ICF).
-  Use this skill when preparing for or executing Senior/Staff SWE coding interviews involving concurrent in-memory ledgers,
-  locking design, deadlock prevention, state machines, and architecture-first AI prompt engineering.
+  Comprehensive guide and evaluation rubric for Circle Senior/Staff SWE Technical Interviews (e.g. AI Implementation Interview, CodeSignal ICF).
+  Use this skill to understand what Circle interviewers evaluate, how to drive AI as a Tech Lead, master Go concurrency and data integrity patterns,
+  and execute high-stakes live coding interviews across any problem domain.
 ---
 
-# Circle & Fintech AI Implementation Interview Playbook
+# Circle Senior/Staff SWE Interview Playbook
 
-This skill equips an engineer or AI assistant with the architectural models, concurrency patterns, and prompt engineering frameworks needed to pass Senior/Staff Software Engineer technical interviews (especially at Circle, Fintech companies, or CodeSignal progressive multi-level assessments).
-
----
-
-## 1. Core Mindset: The "Driver vs. Copilot" Model
-
-In an **AI Implementation Interview**:
-- **You are the Tech Lead / System Architect (Driver)**: You make all architectural decisions, identify concurrency risks, define state machines, and set interface boundaries before asking the AI to write code.
-- **AI is the Junior Coder (Copilot)**: Responsible for rapid boilerplate generation, syntax details, standard algorithms, and unit test generation.
-- **You are the Gatekeeper**: You review every generated line for concurrency leaks, deadlocks, and missed edge cases.
-
-### The 3-Minute Rule Before Every Prompt
-When a new Level or requirement is given, **never copy-paste the problem directly to AI**. Spend 2–3 minutes writing down:
-1. **Affected Data Models**: What structs and fields need to change?
-2. **Concurrency & Locking Strategy**: What locks are acquired? In what order? Is there an ABBA deadlock risk?
-3. **State Transitions & Edge Cases**: What is the happy path? What can fail? What needs to be atomic?
+This skill is a complete guide to succeeding in Circle's **AI Implementation Interview** and other technical rounds. It details the exact rubric Circle interviewers use, how to maintain architectural control when pairing with AI, and the universal engineering standards expected of a Senior or Staff Software Engineer.
 
 ---
 
-## 2. Senior Prompt Template (The "Architecture-First" Prompt)
+## 1. What Circle Interviewers Are Actually Evaluating
 
-Structure your prompt to Claude / Copilot using this 5-part blueprint:
+In an AI-enabled interview, the interviewer is **not** testing whether you can memorize Go syntax or write basic algorithms from scratch. They are assessing whether you can function as an **autonomous, high-judgment Tech Lead**.
 
-```markdown
-[Context & Role]
-We are building a concurrent in-memory settlement ledger in Go.
+### The 5 Evaluation Dimensions
 
-[Architectural Decisions]
-- Locking Strategy: [e.g., Use two-level locking; lock accounts in lexicographical order via lockPair to avoid ABBA deadlock].
-- Transaction Atomicity: [e.g., Use Two-Phase execution: validate checks first (checkDebit/checkCredit), then apply state updates].
-- Data Flow: [e.g., Read snapshots for rankings without holding the collection write lock].
+| Dimension | What Interviewers Look For | Red Flags (Down-level / Reject) |
+| :--- | :--- | :--- |
+| **1. Architectural Sovereignty** | You define data structures, boundaries, and invariants *before* writing code. You tell the AI what to build, not ask it what to do. | Copy-pasting the raw problem description directly into the AI and letting it dictate the architecture. |
+| **2. Concurrency & Data Integrity** | Deep instinct for race conditions, deadlock elimination, atomicity, and lock granularity. Knowing financial states cannot tolerate data races. | Using a single global lock, ignoring ABBA deadlocks on multi-resource operations, or mutating state without locks. |
+| **3. AI Collaboration & Prompt Quality** | High-signal, constraint-driven prompts. Treating AI as a junior pair-programmer. | Vague prompts, repetitive trial-and-error prompting, or accepting code without reading it. |
+| **4. Defensive Engineering** | Guard clauses, typed errors (`errors.Is`), numeric overflow checks, idempotent operations, and zero data leakage. | Missing validation, silent failures, panic risks, or ignoring edge cases like negative numbers and zero values. |
+| **5. Communication & Think Aloud** | Narrating decisions: *"I am setting a strict lock ordering here to prevent circular wait, then I'll have AI implement the helper."* | Silent coding, staring at AI outputs without explaining what you are reviewing or why a test failed. |
 
-[Interface & Method Contract]
-[Provide exact method signature, parameters, and return types]
+---
 
-[Guard Clauses & Explicit Errors]
-- [Condition 1] -> Err...
-- [Condition 2] -> Err...
+## 2. The 4 Progressive Levels: What the Interviewer Tests at Each Stage
 
-[Implementation Guidelines]
-- Idiomatic Go (errors.Is, pointer receivers, no global locks).
-- Thread-safe and zero data races under `go test -race`.
+Circle's technical tasks (CodeSignal Industry Coding Framework) evolve through 4 distinct levels. Regardless of the domain (Ledger, Key-Value Store, File System, or Token Router), each level has a specific grading purpose:
+
+```text
+Level 1: Foundation & Data Modeling (15 min)
+   └─ Goal: Clean abstractions, proper encapsulation, basic CRUD, thread-safe scaffolding.
+
+Level 2: Aggregation & Multi-Resource Interaction (20 min)
+   └─ Goal: Cross-entity operations, deadlock prevention, non-blocking analytical reads.
+
+Level 3: Complex State & Requirement Shift (30 min)
+   └─ Goal: Introducing state machines, delayed/scheduled operations, refactoring without breaking tests.
+
+Level 4: Resilience, Backward Compatibility & Edge Cases (20 min)
+   └─ Goal: Compensation/Rollback, account merges, idempotency, seamless backward compatibility.
 ```
 
-For full copy-ready prompt templates, see [prompt_templates.md](./references/prompt_templates.md).
-
 ---
 
-## 3. The 4 Golden Concurrency Patterns in Fintech Ledgers
+## 3. The "Driver-Copilot" Operating Model
 
-When dealing with financial transactions in memory, always apply these four patterns:
+When interacting with the AI during the interview, follow the **3-Minute Architecture Rule**:
 
-1. **Two-Level Locking (Hierarchical Locking)**:
-   - Level 1: `sync.RWMutex` on the registry/map (read lock for lookups, write lock only when creating/deleting accounts).
-   - Level 2: `sync.Mutex` inside each entity (`Account`) to protect balance and history.
-2. **Lock Ordering (Deadlock Elimination)**:
-   - When acquiring locks on two entities (e.g. Account A and Account B in a transfer), **always sort by ID first**:
-     `first, second := x, y; if second.id < first.id { first, second = second, first }`.
-3. **Two-Phase Commit (Check-then-Act)**:
-   - Hold both locks -> Check all conditions (balance, overflows, limits) -> Apply all changes -> Release locks.
-4. **Snapshot Read for Heavy Aggregations**:
-   - For analytics/rankings (`GetTopSpenders`), read references under collection RLock, read entity snapshots under individual Mutex, and sort outside of critical sections to maximize write throughput.
-
-Detailed code references and diagrams are in [locking_and_concurrency.md](./references/locking_and_concurrency.md).
-
----
-
-## 4. State Machines & Payment Lifecycles
-
-In Level 3 & Level 4, questions transition to delayed payments, batch processing, and rollbacks:
-- **Statuses**: `SCHEDULED` -> `PROCESSING` -> `SUCCESS` | `FAILED` | `CANCELLED`.
-- **Sorting Rules**: Sort by execution timestamp ascending, break ties by ID.
-- **Idempotency & Replay Protection**: Track transaction IDs to reject duplicates.
-- **Rollback / Compensation**: Implement an undo stack or command log.
-
-See [fintech_state_machines.md](./references/fintech_state_machines.md) for full implementation patterns.
-
----
-
-## 5. Verification Checklist
-
-Always run these commands in the terminal before declaring a level complete:
-```bash
-# 1. Run tests with race detector enabled
-go test -count=1 -v -race ./...
-
-# 2. Verify compilation and lint
-go vet ./...
+```text
+[New Requirement Arrives]
+        │
+        ▼
+[2-3 Min: Architect Alone] ──> Define structs, lock boundaries, error types, state transitions
+        │
+        ▼
+[Prompt: Architecture-First] ──> Send constraints + decisions + interfaces to AI
+        │
+        ▼
+[Gatekeeper Review] ──> Audit AI code for concurrency bugs, value copying, and edge cases
+        │
+        ▼
+[Verification] ──> Run tests with `go test -count=1 -v -race ./...`
 ```
+
+---
+
+## 4. Universal Concurrency & Design Principles (Fintech Standards)
+
+No matter what problem Circle presents, the following four rules always apply:
+
+1. **Hierarchical Locking**: Never protect an entire registry and individual records with one big lock. Use read-write locks for lookup registries and granular locks for entities.
+2. **Deterministic Lock Ordering**: When any operation requires locking two or more entities simultaneously, **always sort resources by a consistent key (e.g. ID)** before acquiring locks to guarantee zero deadlocks.
+3. **Two-Phase Mutation (Check-then-Act)**: When coordinating state changes across multiple resources, check all preconditions across all involved entities before committing mutations to any single entity.
+4. **Isolated Snapshot Reads**: Analytics and reporting queries must never hold write locks on active transaction paths. Take snapshots under short read locks and perform sorting or transformations outside the lock.
+
+Detailed implementation patterns and reference code are documented in [concurrency_and_data_integrity.md](./references/concurrency_and_data_integrity.md).
+
+---
+
+## 5. Reference Documentation in this Skill
+
+- [concurrency_and_data_integrity.md](./references/concurrency_and_data_integrity.md): Universal concurrency patterns, deadlock elimination, and Go runtime pitfalls.
+- [ai_interaction_framework.md](./references/ai_interaction_framework.md): The Architecture-First Prompting framework, prompt checklists, and common AI blindspots to watch for.
+- [interview_execution_playbook.md](./references/interview_execution_playbook.md): Time management, Think Aloud scripts, and handling live test failures under pressure.
