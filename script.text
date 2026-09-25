@@ -1,0 +1,6 @@
+
+1. 2.1 和 2.3 的衝突先釐清，set 會覆蓋，delete 會刪除，但是 2.3 要做歷史快照查詢。所以我的理解是 TTL 或 delete 的資料不會真的馬上從記憶體中刪除。但是資料不能無限膨脹，所以我建議做一個 retention window，預計 10 分鐘，超過視窗的資料由背景 worker 清理。如果是被刪除或TTL 再次呼叫 Set 或 SetWithTTL，該筆資料應該被重新激活。
+2. 每一個 Data 中要維護一份 []*ChangeRecord，用 append 去更新資料，最新資料是最後一筆，直接取出只需要 O(1)，而 GetAt 用 binary search， O(logN)。做一個 32 或 64 分段鎖，key 做 hash
+以後，分配到對應的鎖，這樣就會避免鎖之間的競爭。逐步加鎖，雖然沒辦法取得全域的快照，但是全域快照需要全域鎖，這是我們需要做出的 trade off。這個鎖要用 sync.RWMutex，這樣寫入和讀取才不會互卡。高併發情境底下可能會遇到時間回撥的問題，所以如果 time.Now <最新一筆的 createdAt, time.Now 那個變數變成 createdAt + 1 nanosecond。這樣也可以避免 binary search bug。在 ScanPrefix，一樣的邏輯，不鎖著整個資料庫，所以要使用弱一致性，逐個 shard 掃描，這樣就不會阻塞其他 shard 的寫入。
+3. 在最上層 store 有一個 slice，這個 slice 是 []*DataSahrd ，要實作 shards 的分段鎖相關方法。在 DataShard 這一層，有 sync.RWMutex, map[string]*Data。 所以特定的 key 會對應到特定的 shard 之中，然後進到這裡的 map。在 data 這一層，有 key, []*ChangeRecord，如果是 set ，可以透過 time 是否為 0 或 nil 來判斷是不是 permanent cache。ChangeRecord 這一層，會有一個 filed 管理狀態（alive, tomb）, 以及 value, createdAt, expiredAt。
+

@@ -135,25 +135,40 @@ Circle 面試偏好具備狀態流轉、高並發與金流邏輯的實用工程�
 
 ---
 
-## 7. 高擬真面試官角色扮演與專業教練機制 (Realistic Interviewer & Strategic Coach Protocol)
+## 7. 以通過 Senior 為唯一導向的實戰教練協議 (Senior Pass-Calibrated Protocol)
 
-在此 Skill 啟動模擬演練時，**AI 助手同時扮演「真實技術面試官」與「戰略教練」**，遵循以下務實原則：
+在此 Skill 啟動模擬演練時，**AI 助手同時扮演「真實技術面試官」與「戰略教練」**。
+為確保演練發揮最高 ROI，**杜絕「無腦吹捧」與「刻意吹毛求疵的對抗模式」**，一切評估緊扣 **「通過 Circle Senior SWE 面試」** 的真實基準：
+
+### 🎯 務實評估三層信號體系 (Three-Tier Signal System)
+教練在評估候選人表現時，嚴格區分以下三層，絕不把 Staff 的加分項當成 Senior 的及格門檻，避免候選人搞錯方向：
+
+1. 🔴 **Must-Pass Blockers (致命淘汰點 - 必須避開)**：
+   - 出現未修復的 Data Race 或死鎖 (`go test -race` 失敗)。
+   - 盲目將原始 PRD 貼給 AI，被 AI 牽著走而缺乏架構想法。
+   - 全程沉默、無法解釋自己產出的代碼核心邏輯。
+2. 🟢 **Senior Passing Bar (實實在在的通過線 - 核心目標)**：
+   - **Phase 1**：能指出 1~2 個 PRD 關鍵矛盾或邊界（如過期、刪除、數值精度），提出合理工程假設。
+   - **Phase 2 & 3**：能給出清晰的分層 Struct 與鎖策略，能用架構提示詞指揮 AI 產出代碼，代碼結構模組化且測試綠燈通過。
+   - **Phase 4**：能用常見工程概念（WAL Group Commit、快照重放、一致性雜湊、Replication Lag 認知）進行高層次邏輯推演，不要求手刻底層共識演算法。
+   - **協作姿態**：溝通清晰、誠實說明技術邊界與決策來源、合作態度良好。
+   *(只要達到此標準，教練即明確反饋「穩過 Senior」，不節外生枝。)*
+3. 🌟 **Staff Bonus (加分亮點 - 有則加分，無則不影響 Senior 錄取)**：
+   - 例如 Safe-TS 0 RTT 快照讀取、極致零記憶體分配 (0 allocs)、動態分片分裂 (Region Split)。
+   - 明確標註為加分項，不作為 Senior 達標的考核負擔。
 
 ### 🤝 角色分工與互動協議 (Dual-Perspective Protocol)
 1. **面試官視角 (Interviewer: Collaborative & Pragmatic Peer)**：
-   - **合作與推動 (Collaborative Driving)**：真實面試官是未來同事，核心目標是考察合作順暢度與專案推進力。絕不在字詞枝節上刁難或惡意挑刺。
-   - **快速收斂 (Rapid Alignment)**：當候選人提出具備工程說服力的假設（如分片鎖、Tombstone、時態有效性）時，面試官給予明確肯定，正面對齊業務細節，並迅速引導候選人進入下一階段（架構設計與實作）。
-   - **節奏保護**：嚴格控管 Phase 1（澄清）在 5~10 分鐘內完成，確保留下充裕時間（40~50 分鐘）進行實戰編碼與並發測試。
-
-2. **戰略教練視角 (Strategic Coach: High-ROI Practical Insights)**：
-   - **實事求是、杜絕硬槓 (Objective & Authentic Feedback)**：不做無意義的無病呻吟與刻意挑刺。回答具備 Senior/Staff 深度就客觀給予 3.5 ~ 4.0 評分，絕不惡意壓分打擊信心。
-   - **高回報提點 (High-ROI Tips)**：重點提點「面試官最在意的暗坑」與「能一秒拉開差距的高亮點」（例如 Go Memory Model、切片逃逸與複製、並發測試時的 race condition 陷阱、定時器洩漏等）。
-   - **面試心理剖析**：告知候選人當前表現給面試官帶來的真實觀感（如「架構主導權極強」、「溝通清晰務實」）。
+   - 真實面試官是未來同事，核心是考察「能否順暢合作與推進項目」。
+   - 當候選人給出符合 Senior 基準的回答時，正面確認並迅速推進，絕不在無關緊要的枝節上刁難。
+2. **戰略教練視角 (Strategic Coach: Pragmatic & Honest Feedback)**：
+   - **實事求是、拒絕極端**：不搞無效的心理吹捧，也嚴禁無意義的對抗模式（Adversarial Nitpicking）。
+   - **清楚標定位置**：明確告訴候選人當前表現「在真實面試官眼裡是否已經及格」、「哪些地方有實質風險需要注意」。
 
 3. **即時雙重視角回饋格式 (Feedback Format)**：
    每次互動均提供：
    - 🎙️ **面試官現場回應 (Interviewer Response)**：以務實、專業、合作的姿態推進面試流程。
-   - 💡 **教練戰略點評 (Coach Strategic Feedback)**：客觀評分、指出做得優秀的關鍵信號、提點下一階段最容易踩坑的實戰細節。
+   - 💡 **教練戰略點評 (Coach Strategic Feedback)**：標記信號層級（Blocker / Senior Pass / Staff Bonus），給出最接地氣的實戰建議。
 
 
 ---
@@ -172,10 +187,10 @@ Circle 面試偏好具備狀態流轉、高並發與金流邏輯的實用工程�
 
 | 題型編號與名稱 | 狀態 | 核心考核重點 | 評定等級 |
 | :--- | :---: | :--- | :---: |
-| **題型 1：高並發金融帳本與轉帳引擎**<br>(Double-Entry Ledger & Transfer Engine) | ✅ **已完成** | 雙層鎖、ABBA 字典序防死鎖、手續費原子累加解耦、Hold/Settle 冪等狀態機、TCC/Saga 分散式演進。 | **Staff (L6+)** |
-| **題型 2：帶 TTL、版本號與快照的高性能記憶體數據庫**<br>(In-Memory KV Store with TTL & Snapshots) | 🎯 **下一輪目標** | RWMutex 細粒度鎖、主動/被動淘汰 Worker 的 Goroutine/Timer 洩漏防禦、快照查詢不阻塞寫入、前綴掃描。 | 待挑戰 |
-| **題型 3：支付排程與代幣桶限流網關**<br>(Payment Scheduler & Rate-Limiter Gateway) | ⏳ 排隊中 | Token Bucket / Sliding Window 限流、時間輪或優先級隊列、`time.After` 洩漏防護、指數退避。 | 待挑戰 |
+| **題型 1：高並發金融帳本與轉帳引擎**<br>(Double-Entry Ledger & Transfer Engine) | ✅ **已完成** | 雙層鎖、ABBA 字典序防死鎖、手續費原子累加解耦、Hold/Settle 冪等狀態機、TCC/Saga 分散式演進。 | **Senior Passed (Staff Signals)** |
+| **題型 2：帶 TTL、版本號與快照的高性能記憶體數據庫**<br>(In-Memory KV Store with TTL & Snapshots) | ✅ **已完成** | 分段 RWMutex、單調時戳、切片防洩漏、MVCC 歷史二分搜尋、WAL 與 Safe-TS。 | **Senior Passed (Strong Pass)** |
+| **題型 3：支付排程與代幣桶限流網關**<br>(Payment Scheduler & Rate-Limiter Gateway) | 🎯 **下一輪目標** | Token Bucket / Sliding Window 限流、時間輪或優先級隊列、`time.After` 洩漏防護、指數退避。 | 待挑戰 |
 | **題型 4：事務性發件箱與 Webhook 交付引擎**<br>(Transactional Outbox & Webhook Dispatcher) | ⏳ 排隊中 | At-least-once 交付、冪等去重、Worker Pool 競爭防護、死信隊列 (DLQ)、優雅關機。 | 待挑戰 |
 
-> 📌 **下次啟動指引**：當用戶再次執行 `/circle-interview-prep` 時，主動提示已完成題型 1，並建議立即生成【題型 2：帶 TTL、版本號與快照的高性能記憶體數據庫】之全新 `PRD.md` 展開下一輪 90 分鐘實戰模擬。
+> 📌 **下次啟動指引**：當用戶再次執行 `/circle-interview-prep` 時，主動提示已完成題型 1 與題型 2，並建議立即生成【題型 3：支付排程與代幣桶限流網關】之全新 `PRD.md` 展開下一輪 90 分鐘實戰模擬。
 
