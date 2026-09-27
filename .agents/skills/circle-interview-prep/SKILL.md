@@ -194,6 +194,18 @@ Circle 對 Senior 與 Staff 候選人的評估聚焦在以下五大維度（特�
    - **Step 3 (Tests & Race)**：產出測試套件，執行 `go test -race` 驗證。
 3. **架構主權永不旁落**：因為架構骨架全由候選人預先定義，候選人永遠具備 100% 的 Code Review 能力。
 
+### 🎯 隱藏 Bug 靶場演練模式 (Bug Hunting / Anti-Pattern Dojo)
+專為突破「並發敏感度」與高密度覆蓋「三大 AI 關卡」所設計的最高效訓練模式：
+- **核心定位**：一箭三雕——同時貫通 **「AI 協同實作之 Gatekeeper 審查」**、**「Code Review with AI (Approve vs Request Changes 決策)」** 與 **「Debug with AI (定位 Root Cause)」**。
+- **訓練形式**：
+  1. AI 教練每次提供一段 20~40 行的高仿真 Go 代碼片段（取自金融帳本、限流網關、發件箱、換匯、快取等核心場景）。
+  2. 代碼表面平靜，內部暗藏 1~2 個隱蔽的 **P0/P1 級別致命傷**（如 Copylock、ABBA 死鎖、鎖內外部 I/O、過早提交未回滾、Goroutine/Timer 洩漏、浮點數精度損失、未受保護的切片/Map 讀寫）。
+  3. 候選人扮演 **Tech Lead**，在 2~3 分鐘內指出：
+     - **哪一行有問題**？
+     - **在生產高並發或外部網路異常時會引發什麼災難性事故**？
+     - **具體的修復架構與代碼寫法**（並給出 Review 判定：`Request Changes` 理由）。
+- **訓練效果**：短時間內建立 15+ 個經典反模式的直覺反射，不再需要從零寫代碼才能遇到坑。
+
 ---
 
 ## 8. 參考資源與指南 (Reference Documentation)
