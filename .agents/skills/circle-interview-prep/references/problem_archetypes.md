@@ -95,3 +95,74 @@ Circle 平台必須對接多個外部銀行網路（Fedwire, ACH, SEPA）與區�
 - **併發重複消費**：多個 Worker 同時撈取待發送事件時，如何防止同一事件被兩個 Worker 同時發送？
 - **At-least-once 語意**：商戶端已處理但 HTTP Response 逾時，Worker 重試時商戶端如何保證冪等？
 - **順序保證 (Ordering)**：同一個商戶的多個狀態變更事件是否需要嚴格保持先後順序？
+
+---
+
+## 題型 5：多幣別即時換匯與跨國出金引導引擎 (Multi-Currency FX & Routing Engine)
+
+### 題型背景
+Circle 處理跨國出金與結算，支援多種主權貨幣與數位貨幣（如 USD、EUR、GBP、USDC）。商戶發起跨幣別支付時，系統必須向多個外部流動性提供商（Liquidity Providers / LPs）詢價，鎖定報價（Quote with TTL），凍結發起方資金，並在時效內清算入帳。此題目純屬傳統金融後端高並發架構，不涉任何區塊鏈知識。
+
+### 核心功能需求
+1. **即時報價鎖定 (Quote Request & TTL Lock)**：
+   - `RequestQuote(fromCurrency, toCurrency, amount)` 向流動性渠道取得最優匯率，生成具備 15 秒生存期 (`ExpiresAt`) 的 `QuoteID`。
+2. **資金兩階段預扣與清算 (Two-Phase Hold & Settle)**：
+   - `ExecuteTransfer(quoteID, fromAccountID, toAccountID)`：
+     - 驗證 `Quote` 是否有效未過期。
+     - 原子凍結 `fromAccountID` 源幣別資金。
+     - 呼叫外部結算渠道 `ClearingChannel.Settle()`。
+     - 結算成功後扣減源幣別凍結款，並將目標幣別記入 `toAccountID`。
+3. **過期與失敗釋放 (Rollback / Release)**：
+   - 若外部通道結算失敗或報價過期，原子釋放凍結資金，回傳確切原因。
+
+### 面試官預埋的模糊陷阱 (考驗澄清與假設)
+- **報價過期毫秒級競爭 (Expiry Race)**：在呼叫 `ExecuteTransfer` 的當下瞬間報價剛好過期，或執行中過期，系統如何定義仲裁邊界？
+- **跨帳戶轉帳死鎖**：若涉及到同時扣款與入帳，多協程跨幣別轉帳時如何依 ID 字典序有序加鎖避免 ABBA 死鎖？
+- **微單位精度與四捨五入 (Rounding Precision)**：匯率乘以金額時產生的微小零頭如何處理？是截斷（Truncate）還是進位？各幣別的微單位精度不同（如 JPY 為 1，USD 為 1,000,000）時如何換算？
+
+---
+
+## 題型 6：實時交易風控與滑動窗口頻率檢核引擎 (Transaction Velocity & Risk Engine)
+
+### 題型背景
+所有經過 Circle 的金流在送往銀行通道前，必須在毫秒級（<5ms）內通過動態風控限額檢核。風控規則包含單筆金額上限、單一商戶在滾動時間窗口（如過去 1 分鐘、1 小時）內的累計金額與次數限制。
+
+### 核心功能需求
+1. **風控規則評估 (EvaluateTransaction)**：
+   - 接收交易 `(TransactionID, MerchantID, Amount, Timestamp)`。
+   - 評估單筆限額與滑動窗口累計限額（Sliding Window Velocity Limit）。
+   - 回傳三態決策：`APPROVED`、`REJECTED`、`REVIEW_HOLD`。
+2. **滑動窗口統計 (Sliding Window Aggregator)**：
+   - 支援基於記憶體的高效滾動時間統計（如 Bucket ring buffer 或有序時間戳鏈表），拒絕粗暴的全量記憶體掃描。
+3. **規則熱加載 (Dynamic Rule Hot-Reload)**：
+   - 支援 `UpdateRules(rules)` 在不停機、無 Race Condition 下動態覆蓋現有規則，且熱更新不能長時間阻塞高頻評估。
+4. **人工審核暫態隊列 (Review Hold Queue)**：
+   - 標記為 `REVIEW_HOLD` 的交易進入暫態隊列，支援管理者呼叫 `ApproveHold(txID)` 或 `RejectHold(txID)`，超時未審核則依預設政策自動拒絕。
+
+### 面試官預埋的模糊陷阱
+- **滑動窗口鎖競爭與記憶體洩漏**：高並發頻繁寫入時，如果使用大鎖保護時間窗口，會成為全系統瓶頸；過期窗口記錄未清理會導致記憶體爆炸。
+- **時鐘回撥與亂序交易**：若伺服器時間微幅漂移，或網絡延遲導致較早時間戳的交易晚到達，滑動窗口如何處理？
+- **三態審查超時競爭**：當後台管理者正在按 Approve 的同時，超時自動退回的 Timer 也剛好觸發，如何保證決策的原子性？
+
+---
+
+## 題型 7：批次出金匯總與銀行異步對帳引擎 (Batch Payout & Reconciliation Engine)
+
+### 題型背景
+為降低每筆銀行電匯與清算手續費，Circle 需將多筆小額出金即時聚合成批次（Batching），定期送交銀行。同時，銀行每日會非同步傳回對帳文件（Reconciliation Statement），系統需自動比對帳本與銀行流水，揪出未平帳、漏帳或微差交易。
+
+### 核心功能需求
+1. **雙觸發動態批次匯總 (Dual-Trigger Batch Accumulator)**：
+   - 商戶提交出金 `SubmitPayout(payoutID, merchantID, amount)`。
+   - 批次觸發條件：**數量達到上限（如 100 筆）OR 距離上次送出已達時間上限（如 3 秒）**，兩者先到者觸發打包，送至外部 `BankFileSender.SendBatch(batch)`。
+2. **批次鎖定與取消競爭 (Batch Lock & Cancel)**：
+   - 出金在打包前可隨時呼叫 `CancelPayout(payoutID)` 取消；一旦批次已觸發送交銀行，取消操作必須回傳 `ErrBatchInFlight`。
+3. **銀行流水自動對帳 (Reconciliation Processor)**：
+   - 接收銀行非同步對帳清單 `[]BankTransactionRecord`。
+   - 自動將內部記錄標記為 `RECONCILED`、`MISMATCH_AMOUNT`、或 `MISSING_IN_LEDGER`。
+   - 支援手續費公差容忍（Penny Tolerance，如差異 $\le$ 1 美分時自動平衡入手續費帳目）。
+
+### 面試官預埋的模糊陷阱
+- **定時器與協程洩漏**：每次有新交易加入或定時器到期時，若未使用正確的 `time.Timer` 重設（Reset）模式，容易產生數萬個死掉的 Goroutine 與 Timer 殘留。
+- **外部 I/O 阻塞臨界區**：在打包好批次呼叫 `BankFileSender.SendBatch` 進行網絡 I/O 時，如果依然持有批次鎖，將導致所有後續出金請求被活活卡死。
+- **對帳單重放攻擊與冪等性**：銀行網路可能重複推送同一份對帳文件，對帳引擎如何防止手續費重複抵扣與狀態二次竄改？

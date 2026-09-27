@@ -100,10 +100,13 @@ Circle 對 Senior 與 Staff 候選人的評估聚焦在以下五大維度（特�
 
 ---
 
-## 5. Circle 4 大實戰題型庫 (Common Problem Archetypes)
+## 5. Circle 實戰題型庫 (Common Problem Archetypes)
 
-Circle 面試偏好具備狀態流轉、高並發與金流邏輯的實用工程題目，絕非純 LeetCode 刷題：
+> ⚠️ **重要官方考核基準：零區塊鏈先驗知識門檻 (Blockchain-Agnostic Principle)**  
+> Circle 官方與 HR 明確標定：常規後端 SWE（Senior/Staff Backend SWE）**不要求任何區塊鏈、Web3 或智能合約領域知識**。  
+> 面試完全回歸**純後端高並發系統工程**：資料完整性、雙層鎖與防死鎖、狀態機兩階段流轉、微單位數值精度、網路超時與對帳容錯。
 
+### 經典四大核心題型
 1. **高並發金融帳本與轉帳引擎 (Double-Entry Ledger & Transfer Engine)**
    - 核心：帳戶管理、原子性轉帳、資金預扣與結算 (Hold / Release / Settle)、防透支、審計明細。
    - 陷阱：ABBA 死鎖、`math.MaxInt64` 溢位、手續費內扣/外加語意模糊、浮點數精度損失。
@@ -116,6 +119,17 @@ Circle 面試偏好具備狀態流轉、高並發與金流邏輯的實用工程�
 4. **事務性發件箱與 Webhook 交付引擎 (Transactional Outbox & Webhook Dispatcher)**
    - 核心：業務狀態與事件寫入的原子性、並行 Worker 派發 HTTP POST、指數退避、死信隊列 (DLQ)。
    - 陷阱：多 Worker 重複消費、At-least-once 重試時的冪等性喪失、優雅關機 (Graceful Shutdown)。
+
+### 🌟 全新純金融後端高頻題型（無區塊鏈門檻，專為對話式練習打造）
+5. **多幣別即時換匯與跨國出金引導引擎 (Multi-Currency FX & Routing Engine)**
+   - 核心：報價 TTL 預留與防失效、雙幣別兩階段資金凍結與原子清算 (Two-Phase Hold & Settle)、跨通道健康度路由。
+   - 陷阱：報價過期與確認下單的毫秒級競爭 (Expiry Race)、多幣別帳戶扣劃的 ABBA 死鎖、浮點數換算精度與微單位四捨五入偏差。
+6. **實時交易風控與滑動窗口頻率檢核引擎 (Transaction Velocity & Risk Engine)**
+   - 核心：滾動時間窗口 (Sliding Window) 額度累加、動態風控規則熱加載 (Hot-Reload)、三態裁決流轉 (`APPROVED` / `REJECTED` / `REVIEW_HOLD`)。
+   - 陷阱：高並發寫入時滑動窗口的鎖競爭與計數漂移、規則熱更新造成讀寫鎖阻塞、人工審查逾時的自動超時處理。
+7. **批次出金匯總與銀行異步對帳引擎 (Batch Payout & Reconciliation Engine)**
+   - 核心：雙觸發動態批次匯總（數量滿 vs 定時 Flush 雙觸發）、非同步銀行對帳單雙向比對、微差調整 (Penny Variance) 與重複重放防護。
+   - 陷阱：動態計時器重設時的 Goroutine/Timer 洩漏、批次在鎖內執行外部 I/O 導致寫入癱瘓、對帳單重放時的冪等性喪失。
 
 👉 完整規格與陷阱剖析詳見 [problem_archetypes.md](./references/problem_archetypes.md)。
 
@@ -170,12 +184,21 @@ Circle 面試偏好具備狀態流轉、高並發與金流邏輯的實用工程�
    - 🎙️ **面試官現場回應 (Interviewer Response)**：以務實、專業、合作的姿態推進面試流程。
    - 💡 **教練戰略點評 (Coach Strategic Feedback)**：標記信號層級（Blocker / Senior Pass / Staff Bonus），給出最接地氣的實戰建議。
 
+### 🧩 核心指揮實戰法規：最小單元代碼階梯式產出 (Minimal Unit Protocol)
+面試官評審委員會拒絕候選人最常見的理由是「被 AI 牽著走、無法 Review 300 行代碼 dump」。
+嚴格貫徹 **「最小單元代碼」** 指揮原則：
+1. **拒絕讓 AI 做 Planning**：Planning 必須在 Phase 2 由候選人親自主導對齊，絕不讓 AI 產出 800 字廢話浪費時間。
+2. **三階梯強制交付**：
+   - **Step 1 (Model/Interface)**：只產出資料結構、狀態枚舉與介面（約 30 行），候選人花 15 秒檢查 Struct 與指標接收者。
+   - **Step 2 (Core Engine)**：指定流程與鎖邊界（先做前置驗證與凍結，hold 住後續收尾），分塊生成。
+   - **Step 3 (Tests & Race)**：產出測試套件，執行 `go test -race` 驗證。
+3. **架構主權永不旁落**：因為架構骨架全由候選人預先定義，候選人永遠具備 100% 的 Code Review 能力。
 
 ---
 
 ## 8. 參考資源與指南 (Reference Documentation)
 
-- [problem_archetypes.md](./references/problem_archetypes.md): Circle 4 大實戰題型與 PRD 陷阱深度剖析。
+- [problem_archetypes.md](./references/problem_archetypes.md): Circle 實戰題型與 PRD 陷阱深度剖析。
 - [interview_execution_playbook.md](./references/interview_execution_playbook.md): 90 分鐘節奏表、中文 Think Aloud 話術與即時 Debug 實戰對策。
 - [ai_interaction_framework.md](./references/ai_interaction_framework.md): 架構優先提示詞模板 (Architecture-First Prompts) 與 AI 產出審查守門員清單。
 - [concurrency_and_data_integrity.md](./references/concurrency_and_data_integrity.md): Go 語言金融級並行模式、記憶體模型與防死鎖範例。
@@ -189,8 +212,11 @@ Circle 面試偏好具備狀態流轉、高並發與金流邏輯的實用工程�
 | :--- | :---: | :--- | :---: |
 | **題型 1：高並發金融帳本與轉帳引擎**<br>(Double-Entry Ledger & Transfer Engine) | ✅ **已完成** | 雙層鎖、ABBA 字典序防死鎖、手續費原子累加解耦、Hold/Settle 冪等狀態機、TCC/Saga 分散式演進。 | **Senior Passed (Staff Signals)** |
 | **題型 2：帶 TTL、版本號與快照的高性能記憶體數據庫**<br>(In-Memory KV Store with TTL & Snapshots) | ✅ **已完成** | 分段 RWMutex、單調時戳、切片防洩漏、MVCC 歷史二分搜尋、WAL 與 Safe-TS。 | **Senior Passed (Strong Pass)** |
-| **題型 3：支付排程與代幣桶限流網關**<br>(Payment Scheduler & Rate-Limiter Gateway) | 🎯 **下一輪目標** | Token Bucket / Sliding Window 限流、時間輪或優先級隊列、`time.After` 洩漏防護、指數退避。 | 待挑戰 |
-| **題型 4：事務性發件箱與 Webhook 交付引擎**<br>(Transactional Outbox & Webhook Dispatcher) | ⏳ 排隊中 | At-least-once 交付、冪等去重、Worker Pool 競爭防護、死信隊列 (DLQ)、優雅關機。 | 待挑戰 |
+| **題型 3：支付排程與代幣桶限流網關**<br>(Payment Scheduler & Rate-Limiter Gateway) | ✅ **已就緒** | Token Bucket / Sliding Window 限流、單一計時器與動態喚醒、外部 I/O 鎖隔離、超時對帳。 | 程式碼與測試就緒 |
+| **題型 4：事務性發件箱與 Webhook 交付引擎**<br>(Transactional Outbox & Webhook Dispatcher) | ✅ **已就緒** | At-least-once 交付、本地事務雙寫、Channel 競爭消費、租戶隔離、DLQ。 | 程式碼與測試就緒 |
+| **題型 5：多幣別即時換匯與跨國出金引導引擎**<br>(Multi-Currency FX & Routing Engine) | ✅ **已完成** | 報價 TTL 預留、兩階段資金凍結 (Two-Phase Hold)、ABBA 排序鎖、網路超時三態對帳、DB/分片擴展。 | **Senior Passed (Strong Pass & Staff Signals)** |
+| **題型 6：實時交易風控與滑動窗口頻率檢核引擎**<br>(Transaction Velocity & Risk Engine) | 🎯 **下一輪目標** | 滑動時間窗口額度累加、動態風控規則熱加載、三態裁決狀態機 (`APPROVED`/`REJECTED`/`HOLD`)。 | 待挑戰（純後端） |
+| **題型 7：批次出金匯總與銀行異步對帳引擎**<br>(Batch Payout & Reconciliation Engine) | ⏳ 備選演練 | 雙觸發動態批次匯總 (Size vs Timer)、非同步銀行對帳單雙向比對、微差調整與重放防護。 | 待挑戰（純後端） |
 
-> 📌 **下次啟動指引**：當用戶再次執行 `/circle-interview-prep` 時，主動提示已完成題型 1 與題型 2，並建議立即生成【題型 3：支付排程與代幣桶限流網關】之全新 `PRD.md` 展開下一輪 90 分鐘實戰模擬。
+> 📌 **對話式實戰指引**：使用者可挑選題型 6 或 7 進行「英文 PRD 需求拆解 $\rightarrow$ 澄清與邊界假設 $\rightarrow$ 最小單元代碼 Prompt 指揮 $\rightarrow$ Gatekeeper 預測審查」高 ROI 對話式演練。
 
